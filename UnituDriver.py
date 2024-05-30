@@ -70,46 +70,25 @@ class UnituDriver(webdriver.Edge):
             print("No elements found within the timeout period.")
             print(f"By: {by}, Value: {value}")
 
-    def login(self, future_url=None):
-        self.loginCalls += 1
+    def login(self):
+        # no need to check anything else if we're already logged in
+        if self.is_logged_in():
+            return
 
-        self.driver.get("https://www.bokea.co/gestion/login")
+        self.driver.get("https://uclan.unitu.co.uk/")
+        time.sleep(2)
+        self.load_cookies()
+        time.sleep(2)
+        self.driver.get("https://uclan.unitu.co.uk/")
 
-        # if the last time the driver was login was more than 30 minutes ago, log in again
-        with open("last_login.txt", "r") as f:
-            last_used = float(f.read())
-            if time.time() - last_used < 1800:
-                # add cookies from pickle file
-                with open("cookies.pkl", "rb") as cookie_file:
-                    cookies = pickle.load(cookie_file)
-                    for cookie in cookies:
-                        self.driver.add_cookie(cookie)
+        # this means the cookie injection worked
+        if self.is_logged_in():
+            return
 
-                # either try going to the future url or refresh the page
-                if future_url:
-                    self.driver.get(future_url)
-                else:
-                    self.driver.refresh()
-                return
+        # if not cookies, ask the user to please log in
+        input("Please login, and press enter when done. Note that this will store your cookies locally.")
 
-        login_field = WebDriverWait(self.driver, TIMEOUT).until(
-            EC.presence_of_element_located((By.ID, "loginName"))
-        )
-        password_field = WebDriverWait(self.driver, TIMEOUT).until(
-            EC.presence_of_element_located((By.ID, "password"))
-        )
-        login_field.send_keys(self.username)
-        password_field.send_keys(self.password + Keys.ENTER)
-
-        self.wait_for_page_load()
-
-        # add cookies to pickle file
-        with open("cookies.pkl", "wb") as f:
-            pickle.dump(self.driver.get_cookies(), f)
-
-        # make a log file to store when the last time the driver was used
-        with open("last_login.txt", "w") as f:
-            f.write(str(time.time()))
+        self.dump_cookies()
 
     def load_cookies(self, file_name='cookies.pkl'):
         with open(file_name, "rb") as cookie_file:
@@ -121,6 +100,11 @@ class UnituDriver(webdriver.Edge):
         # add cookies to pickle file
         with open(file_name, "wb") as f:
             pickle.dump(self.driver.get_cookies(), f)
+
+    def is_logged_in(self):
+        username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
+
+        return bool(username)
 
     def get(self, url):
         self.driver.get(url)

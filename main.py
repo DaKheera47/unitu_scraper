@@ -7,14 +7,7 @@ if __name__ == '__main__':
         headless=False
     )
 
-    driver.get("https://uclan.unitu.co.uk/")
-    time.sleep(2)
-
-    driver.load_cookies()
-
-    time.sleep(2)
-
-    driver.get("https://uclan.unitu.co.uk/")
+    driver.login()
 
     print(driver.current_url)
 
@@ -22,6 +15,6 @@ if __name__ == '__main__':
 
     print(driver.current_url)
 
-    # store the html of the page to a file
-    with open("file.html", "w") as f:
-        f.write(driver.page_source)
+    # # store the html of the page to a file
+    # with open("file.html", "w") as f:
+    #     f.write(driver.page_source)
