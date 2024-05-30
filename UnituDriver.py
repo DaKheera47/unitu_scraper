@@ -4,7 +4,7 @@ import pickle
 import time
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -71,14 +71,15 @@ class UnituDriver(webdriver.Edge):
             print(f"By: {by}, Value: {value}")
 
     def login(self):
-        # no need to check anything else if we're already logged in
-        if self.is_logged_in():
-            return
+        try:
+            # no need to check anything else if we're already logged in
+            if self.is_logged_in():
+                return
+        except NoSuchElementException:
+            pass
 
         self.driver.get("https://uclan.unitu.co.uk/")
-        time.sleep(2)
         self.load_cookies()
-        time.sleep(2)
         self.driver.get("https://uclan.unitu.co.uk/")
 
         # this means the cookie injection worked
@@ -100,6 +101,34 @@ class UnituDriver(webdriver.Edge):
         # add cookies to pickle file
         with open(file_name, "wb") as f:
             pickle.dump(self.driver.get_cookies(), f)
+
+    def grab_posts(self):
+        # open
+        open_div = self.driver.find_element(By.ID, "opened-drop-here")
+        open_tickets = open_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+
+        # in progress
+        in_progress_div = self.driver.find_element(By.ID, "in-progress-drop-here")
+        in_progress_tickets = in_progress_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+
+        # closed
+        closed_div = self.driver.find_element(By.ID, "closed-drop-here")
+        closed_tickets = closed_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+
+        print("Open tickets: ")
+        for ticket in open_tickets:
+            a_tag = ticket.find_element(By.TAG_NAME, "a")
+            print(a_tag.get_attribute("href"))
+
+        print("In Progress tickets: ")
+        for ticket in in_progress_tickets:
+            a_tag = ticket.find_element(By.TAG_NAME, "a")
+            print(a_tag.get_attribute("href"))
+
+        print("Closed tickets: ")
+        for ticket in closed_tickets:
+            a_tag = ticket.find_element(By.TAG_NAME, "a")
+            print(a_tag.get_attribute("href"))
 
     def is_logged_in(self):
         username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
