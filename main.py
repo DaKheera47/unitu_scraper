@@ -1,16 +1,27 @@
-# This is a sample Python script.
+from UnituDriver import UnituDriver
+import pickle
+import time
 
-# Press ⌃F5 to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press F9 to toggle the breakpoint.
-
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    driver = UnituDriver(
+        headless=False
+    )
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    driver.get("https://uclan.unitu.co.uk/")
+    time.sleep(2)
+
+    driver.load_cookies()
+
+    time.sleep(2)
+
+    driver.get("https://uclan.unitu.co.uk/")
+
+    print(driver.current_url)
+
+    input("Please login now. Press enter when you're done...")
+
+    print(driver.current_url)
+
+    # store the html of the page to a file
+    with open("file.html", "w") as f:
+        f.write(driver.page_source)
