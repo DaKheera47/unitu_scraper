@@ -1,4 +1,4 @@
-import os
+import json
 import os
 import pickle
 import time
@@ -6,7 +6,6 @@ import time
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -18,6 +17,7 @@ class UnituDriver(webdriver.Edge):
 
     def __init__(self, headless=False, *args, **kwargs):
         self.headless = headless
+        self.data = []
         self.driver = self.create_driver()
 
         # Check if the "last_login.txt" file exists, and create it if it doesn't
@@ -102,6 +102,72 @@ class UnituDriver(webdriver.Edge):
         with open(file_name, "wb") as f:
             pickle.dump(self.driver.get_cookies(), f)
 
+    def scrape_post(self, url):
+        current_data = {}
+        # Open a new window
+        self.driver.execute_script("window.open('');")
+        # Switch context to the new window
+        self.driver.switch_to.window(self.driver.window_handles[1])
+        post_id = url.split('-')[-1]
+
+        self.driver.get(url)
+        current_data["description"] = self.driver.find_element(By.ID, f"full_description_{post_id}").get_attribute(
+            'innerHTML').strip()
+        current_data["title"] = self.driver.find_element(By.ID, "feedbackTitle").text
+        current_data["upvotes"] = self.driver.find_element(By.ID, f"countPositive_{post_id}").text
+        current_data["downvotes"] = self.driver.find_element(By.ID, f"countNegative_{post_id}").text
+        current_data["timer"] = self.driver.find_element(By.ID, f"feedback-timer").text
+
+        current_data['Feedback Details'] = self.driver.find_element(By.XPATH,
+                                                                    "//h6[contains(text(),'Feedback Details')]").text
+        current_data['Type'] = self.driver.find_element(By.XPATH,
+                                                        "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']").text
+        current_data['Status'] = self.driver.find_element(By.XPATH,
+                                                          "//div[contains(text(),'Status')]/following-sibling::div").text
+        current_data['Viewed'] = self.driver.find_element(By.XPATH,
+                                                          "//div[contains(text(),'Viewed')]/following-sibling::div").text
+        current_data['Feedback category'] = self.driver.find_element(By.XPATH,
+                                                                     "//div[contains(text(),'Feedback category')]/following-sibling::div").text
+        current_data['NSS category'] = self.driver.find_element(By.XPATH,
+                                                                "//div[contains(text(),'NSS category')]/following-sibling::div").text
+
+        try:
+            current_data['Year'] = self.driver.find_element(
+                By.XPATH, "//div[contains(text(),'Year')]/following-sibling::div"
+            ).text
+        except NoSuchElementException:
+            current_data['Year'] = ""
+
+        try:
+            current_data['Module'] = self.driver.find_element(
+                By.XPATH, "//div[contains(text(),'Module')]/following-sibling::div"
+            ).text
+        except NoSuchElementException:
+            current_data['Module'] = ""
+
+        try:
+            current_data['Assignee'] = self.driver.find_element(
+                By.XPATH, "//div[contains(text(),'Assignee')]/following-sibling::div"
+            ).text.split('\n')[1]
+        except NoSuchElementException:
+            current_data['Assignee'] = ""
+
+        current_data['staff_views'] = self.driver.find_element(By.XPATH,
+                                                               "//div[contains(text(),'Staff')]/following-sibling::div").text
+        current_data['student_views'] = self.driver.find_element(By.XPATH,
+                                                                 "//div[contains(text(),'Students')]/following-sibling::div").text
+
+        current_data["url"] = url
+
+        self.data.append(current_data)
+
+        print(f"{json.dumps(self.data, indent=4)}")
+
+        # close this tab
+        self.driver.close()
+        # switch context to the first tab
+        self.driver.switch_to.window(self.driver.window_handles[0])
+
     def grab_posts(self):
         # open
         open_div = self.driver.find_element(By.ID, "opened-drop-here")
@@ -115,20 +181,20 @@ class UnituDriver(webdriver.Edge):
         closed_div = self.driver.find_element(By.ID, "closed-drop-here")
         closed_tickets = closed_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
 
-        print("Open tickets: ")
-        for ticket in open_tickets:
-            a_tag = ticket.find_element(By.TAG_NAME, "a")
-            print(a_tag.get_attribute("href"))
+        # print("Open tickets: ")
+        # for ticket in open_tickets:
+        #     a_tag = ticket.find_element(By.TAG_NAME, "a")
+        #     self.scrape_post(a_tag.get_attribute("href"))
 
         print("In Progress tickets: ")
         for ticket in in_progress_tickets:
             a_tag = ticket.find_element(By.TAG_NAME, "a")
-            print(a_tag.get_attribute("href"))
-
-        print("Closed tickets: ")
-        for ticket in closed_tickets:
-            a_tag = ticket.find_element(By.TAG_NAME, "a")
-            print(a_tag.get_attribute("href"))
+            self.scrape_post(a_tag.get_attribute("href"))
+        #
+        # print("Closed tickets: ")
+        # for ticket in closed_tickets:
+        #     a_tag = ticket.find_element(By.TAG_NAME, "a")
+        #     self.scrape_post(a_tag.get_attribute("href"))
 
     def is_logged_in(self):
         username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
