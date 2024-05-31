@@ -112,8 +112,14 @@ class UnituDriver(webdriver.Edge):
 
         self.driver.get(url)
         current_data["title"] = self.driver.find_element(By.ID, "feedbackTitle").text
-        current_data["description"] = self.driver.find_element(By.ID, f"full_description_{post_id}").get_attribute(
-            'innerHTML').strip()
+        try:
+            # required for descriptions that don't expand
+            current_data["description"] = self.driver.find_element(By.ID, "feedbackDescription").text.strip()
+        except NoSuchElementException:
+            # required for descriptions that expand with a "show more" button
+            current_data["description"] = self.driver.find_element(By.ID, f"full_description_{post_id}").get_attribute(
+                'innerHTML').strip()
+
         current_data["upvotes"] = self.driver.find_element(By.ID, f"countPositive_{post_id}").text
         current_data["downvotes"] = self.driver.find_element(By.ID, f"countNegative_{post_id}").text
         current_data["timer"] = self.driver.find_element(By.ID, f"feedback-timer").text
@@ -134,21 +140,21 @@ class UnituDriver(webdriver.Edge):
                 By.XPATH, "//div[contains(text(),'Year')]/following-sibling::div"
             ).text
         except NoSuchElementException:
-            current_data['year'] = ""
+            pass
 
         try:
             current_data['module'] = self.driver.find_element(
                 By.XPATH, "//div[contains(text(),'Module')]/following-sibling::div"
             ).text
         except NoSuchElementException:
-            current_data['module'] = ""
+            pass
 
         try:
             current_data['assignee'] = self.driver.find_element(
                 By.XPATH, "//div[contains(text(),'Assignee')]/following-sibling::div"
             ).text.split('\n')[1]
         except NoSuchElementException:
-            current_data['assignee'] = ""
+            pass
 
         current_data['staff_views'] = self.driver.find_element(By.XPATH,
                                                                "//div[contains(text(),'Staff')]/following-sibling::div").text
@@ -160,12 +166,15 @@ class UnituDriver(webdriver.Edge):
             issue_status_div = self.driver.find_element(By.XPATH, "//div[contains(text(), 'status to Open')]/..")
 
             current_data["issue_opener_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
-            current_data["issue_opened_how_long_ago"] = issue_status_div.find_elements(By.CSS_SELECTOR,
-                                                                                       "span.small.text-dark-600")[
-                0].text
-            current_data["issue_opener_designation"] = issue_status_div.find_elements(By.CSS_SELECTOR,
-                                                                                      "span.small.text-dark-600")[
-                1].text
+
+            small_text_element = issue_status_div.find_elements(By.CSS_SELECTOR, "span.small.text-dark-600")
+            current_data["issue_opened_how_long_ago"] = small_text_element[0].text
+
+            if len(small_text_element) > 1:
+                current_data["issue_opener_designation"] = small_text_element[1].text
+            else:
+                print(f"issue opener {current_data['issue_opener_name']} doesn't have a designation, {url}")
+
             current_data["issue_opener_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
         except NoSuchElementException as e:
             print(f"unable to find all fields of open issues. Exception: {e}")
@@ -202,11 +211,9 @@ class UnituDriver(webdriver.Edge):
             except NoSuchElementException as e:
                 print(f"unable to find all fields of closed issues. Exception: {e}")
 
-        current_data["url"] = url
+        current_data["unitu_url"] = url
 
         self.data.append(current_data)
-
-        # print(f"{json.dumps(self.data, indent=4)}")
 
         # close this tab
         self.driver.close()
