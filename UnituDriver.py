@@ -157,6 +157,19 @@ class UnituDriver(webdriver.Edge):
         current_data['student_views'] = self.driver.find_element(By.XPATH,
                                                                  "//div[contains(text(),'Students')]/following-sibling::div").text
 
+        # Find the div containing the text "Changed an issue status to Open"
+        issue_status_div = self.driver.find_element(By.XPATH,
+                                                    "//div[contains(text(), 'Changed an issue status to Open')]")
+        # Navigate to the previous sibling to find the 'feedback-history-author' div
+        sibling_div = issue_status_div.find_element(By.XPATH, "./preceding-sibling::div")
+        current_data["issue_opener_name"] = sibling_div.find_element(By.CSS_SELECTOR, "span.h6").text
+        current_data["issue_opened_how_long_ago"] = sibling_div.find_elements(By.CSS_SELECTOR,
+                                                                             "span.small.text-dark-600")[0].text
+        current_data["issue_opener_designation"] = sibling_div.find_elements(By.CSS_SELECTOR,
+                                                                            "span.small.text-dark-600")[1].text
+        current_data["issue_opener_role"] = sibling_div.find_element(By.CSS_SELECTOR,
+                                                                     "span.badge").text
+
         current_data["url"] = url
 
         self.data.append(current_data)
