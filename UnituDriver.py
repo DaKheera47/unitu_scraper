@@ -211,19 +211,18 @@ class UnituDriver(webdriver.Edge):
                     raise NoSuchElementException(msg="unable to find all fields of closed posts")
 
                 current_data["issue_closer_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
-                current_data["issue_closed_how_long_ago"] = issue_status_div.find_elements(By.CSS_SELECTOR,
-                                                                                           "span.small.text-dark-600")[
-                    0].text
-                current_data["issue_closer_designation"] = issue_status_div.find_elements(By.CSS_SELECTOR,
-                                                                                          "span.small.text-dark-600")[
-                    1].text
-                current_data["issue_closer_role"] = issue_status_div.find_element(By.CSS_SELECTOR,
-                                                                                  "span.badge").text
+
+                small_text_element = issue_status_div.find_elements(By.CSS_SELECTOR, "span.small.text-dark-600")
+                current_data["issue_closed_how_long_ago"] = small_text_element[0].text
+                current_data["issue_closer_designation"] = small_text_element[1].text
+
+                current_data["issue_closer_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
             except NoSuchElementException as e:
                 print(f"unable to find all fields of closed posts. Exception: {e}")
 
         current_data["unitu_url"] = url
 
+        # save the data to the object
         self.data.append(current_data)
 
         # close this tab
