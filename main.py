@@ -8,24 +8,41 @@ def process_board(urls):
     driver = UnituDriver(headless=HEADLESS)
     driver.login()
 
+    data = []
+
     for idx, url in enumerate(urls, start=1):
-        driver.grab_active_posts(url)
-        driver.grab_archived_posts(url)
+        data.append(driver.scrape_post(url))
 
-    return driver.collect_data()
+    return data
 
 
-INSTANCES = 5
-HEADLESS = True
+INSTANCES = 10
+HEADLESS = False
 
 if __name__ == '__main__':
     driver = UnituDriver(headless=HEADLESS)
     driver.login()
 
-    urls = driver.get_all_board_urls()
+    boards = driver.get_all_board_urls()
+
+    post_urls = []
+    # for idx, board in enumerate(boards, start=1):
+    #     print(f"board {idx}/{len(boards)}")
+    #     post_urls.extend(driver.grab_active_post_urls(board))
+    #     post_urls.extend(driver.grab_archived_post_urls(board))
+    #
+    # print(f"{len(post_urls)} posts")
+
+    # write the post_urls to a file
+    # with open("post_urls.txt", "w") as f:
+    #     for url in post_urls:
+    #         f.write(url + "\n")
+
+    with open("post_urls.txt", "r") as f:
+        post_urls.extend(f.read().splitlines())
 
     # Divide the URLs into INSTANCES segments
-    segments = [urls[i::INSTANCES] for i in range(INSTANCES)]
+    segments = [post_urls[i::INSTANCES] for i in range(INSTANCES)]
 
     all_data = []
 

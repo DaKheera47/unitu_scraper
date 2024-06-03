@@ -270,6 +270,8 @@ class UnituDriver(webdriver.Edge):
         # switch context to the first tab
         self.driver.switch_to.window(self.driver.window_handles[0])
 
+        return current_data
+
     def collect_data(self):
         return self.data
 
@@ -285,6 +287,83 @@ class UnituDriver(webdriver.Edge):
             urls.append(a_tag.get_attribute("href"))
 
         return urls
+
+    def grab_archived_post_urls(self, board_url, limit=-1):
+        home_url = "https://uclan.unitu.co.uk"
+
+        # go to the url of the board before getting the posts
+        # self.driver.get(board_url)
+
+        # Click on the archive page link
+        self.driver.find_element(By.CSS_SELECTOR, "a[data-cy='archive-page']").click()
+
+        # Wait for the page to load fully
+        # self.wait_for_page_load()
+
+        # Get all the archived tickets
+        archived_tickets = \
+            self.driver.find_elements(By.XPATH,
+                                      "*//div[contains(@class, 'archive-block__name')]/following-sibling::div/*")
+
+        # Determine the number of posts to process based on the limit
+        if limit != -1 and limit <= len(archived_tickets):
+            # Process up to 'limit' tickets if a valid limit is specified
+            archived_tickets = archived_tickets[:limit]
+        else:
+            # If limit is -1 or greater than the number of tickets, process all tickets
+            archived_tickets = archived_tickets
+
+        urls = []
+        # Iterate over the selected archived tickets
+        for ticket in archived_tickets:
+            ticket_href = ticket.get_attribute("href")
+
+            if not ticket_href:
+                continue
+
+            ticket_full_url = f"{home_url}{ticket_href}"
+            urls.append(ticket_full_url)
+
+        return urls
+
+    def grab_active_post_urls(self, board_url, limit=-1):
+        def process_tickets(tickets):
+            # Determine the number of posts to process based on the limit
+            if limit != -1 and limit <= len(tickets):
+                return tickets[:limit]
+            return tickets
+
+        def get_href(tickets):
+            urls = []
+
+            for ticket in tickets:
+                a_tag = ticket.find_element(By.TAG_NAME, "a")
+                urls.append(a_tag.get_attribute("href"))
+
+            return urls
+
+        # go to the url of the board before getting the posts
+        self.driver.get(board_url)
+
+        # open
+        open_div = self.driver.find_element(By.ID, "opened-drop-here")
+        open_tickets = open_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+        open_tickets = process_tickets(open_tickets)
+        open_urls = get_href(open_tickets)
+
+        # in progress
+        in_progress_div = self.driver.find_element(By.ID, "in-progress-drop-here")
+        in_progress_tickets = in_progress_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+        in_progress_tickets = process_tickets(in_progress_tickets)
+        in_progress_urls = get_href(in_progress_tickets)
+
+        # closed
+        closed_div = self.driver.find_element(By.ID, "closed-drop-here")
+        closed_tickets = closed_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+        closed_tickets = process_tickets(closed_tickets)
+        closed_urls = get_href(closed_tickets)
+
+        return open_urls + in_progress_urls + closed_urls
 
     def grab_active_posts(self, board_url, limit=-1):
         def process_tickets(tickets):
