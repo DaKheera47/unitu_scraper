@@ -9,7 +9,8 @@ if __name__ == '__main__':
 
     urls = driver.get_all_board_urls()
 
-    for url in urls:
+    for idx, url in enumerate(urls):
+        print(f"Processing board: {url} [{idx}/{len(urls)}]")
         driver.grab_active_posts(url)
         driver.grab_archived_posts(url)
 
