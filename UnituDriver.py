@@ -86,7 +86,7 @@ class UnituDriver(webdriver.Edge):
             if self.is_logged_in():
                 print("Logged in already, likely redundant login call")
                 return
-        except NoSuchElementException:
+        except Exception:
             pass
 
         self.driver.get("https://uclan.unitu.co.uk/")
@@ -351,7 +351,10 @@ class UnituDriver(webdriver.Edge):
         return comments
 
     def is_logged_in(self):
-        username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
+        try:
+            username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
+        except Exception as e:
+            return False
 
         # does the username field exist on the page
         # it only exists when logged in
