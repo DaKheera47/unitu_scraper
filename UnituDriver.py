@@ -207,6 +207,8 @@ class UnituDriver(webdriver.Edge):
 
         current_data["unitu_url"] = url
 
+        current_data["comments"] = self.grab_post_comments()
+
         # save the data to the object
         self.data.append(current_data)
 
@@ -252,13 +254,10 @@ class UnituDriver(webdriver.Edge):
         # Wait for the page to load fully
         self.wait_for_page_load()
 
-        # sibling
-        archived_tickets = self.driver.find_elements(By.XPATH,
-                                                     "*//div[contains(@class, 'archive-block__name')]/following-sibling::div/*")
-
         # Get all the archived tickets
-        # archived_tickets = self.driver.find_elements(By.XPATH, "*//div[contains(@class, 'archive-ticket')]/..")
-        print(len(archived_tickets))
+        archived_tickets = \
+            self.driver.find_elements(By.XPATH,
+                                      "*//div[contains(@class, 'archive-block__name')]/following-sibling::div/*")
 
         # Determine the number of posts to process based on the limit
         if limit != -1 and limit <= len(archived_tickets):
@@ -278,6 +277,31 @@ class UnituDriver(webdriver.Edge):
             ticket_full_url = f"{home_url}{ticket_href}"
             print(ticket_full_url)
             self.scrape_post(ticket_full_url)
+
+    def grab_post_comments(self):
+        comment_list = self.driver.find_elements(By.XPATH, "//*[@id='feedbackComments']/*")
+        comments = []
+
+        for comment in comment_list:
+            curr_comment = {}
+
+            curr_comment["content"] = comment.find_element(By.XPATH, ".//div[contains(@id, 'full_text_comment')]").text
+            curr_comment["author"] = \
+                comment.find_element(By.XPATH, ".//span[contains(@data-cy, 'feedback-author-full-name')]").text
+            parent = comment.find_element(By.XPATH,
+                                          ".//descendant-or-self::div[contains(@data-cy, 'comment-author')]/..")
+            child = parent.find_elements(By.TAG_NAME, "div")[1]
+            child_spans = child.find_elements(By.TAG_NAME, "span")
+
+            if len(child_spans) > 0:
+                if bool(child_spans[0].text):
+                    curr_comment["role"] = child_spans[0].text
+                if bool(child_spans[1].text):
+                    curr_comment["designation"] = child_spans[1].text
+
+            comments.append(curr_comment)
+
+        return comments
 
     def is_logged_in(self):
         username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
