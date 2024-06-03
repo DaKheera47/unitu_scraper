@@ -71,6 +71,12 @@ class UnituDriver(webdriver.Edge):
             print("No elements found within the timeout period.")
             print(f"By: {by}, Value: {value}")
 
+    def extract_text(self, selector, by=By.XPATH):
+        try:
+            return self.driver.find_element(by, selector).text
+        except NoSuchElementException:
+            return None
+
     def login(self):
         try:
             # no need to check anything else if we're already logged in
@@ -105,21 +111,22 @@ class UnituDriver(webdriver.Edge):
 
     def scrape_post(self, url):
         current_data = {}
-        # Open a new window
+        # Open a new tab
         self.driver.execute_script("window.open('');")
-        # Switch context to the new window
+        # Switch context to the new tab
         self.driver.switch_to.window(self.driver.window_handles[1])
         post_id = url.split('-')[-1]
 
         self.driver.get(url)
-        current_data["title"] = self.driver.find_element(By.ID, "feedbackTitle").text
+
+        current_data["title"] = self.extract_text("feedbackTitle", by=By.ID)
         try:
             # required for descriptions that don't expand
-            current_data["description"] = self.driver.find_element(By.ID, "feedbackDescription").text.strip()
+            current_data["description"] = self.extract_text("feedbackDescription", by=By.ID)
         except NoSuchElementException:
             # required for descriptions that expand with a "show more" button
-            current_data["description"] = self.driver.find_element(By.ID, f"full_description_{post_id}").get_attribute(
-                'innerHTML').strip()
+            description_element = self.driver.find_element(By.ID, f"full_description_{post_id}")
+            current_data["description"] = description_element.get_attribute('innerHTML').strip()
 
         try:
             upvote_element = self.driver.find_element(By.ID, f"countPositive_{post_id}")
@@ -133,44 +140,22 @@ class UnituDriver(webdriver.Edge):
             downvote_element = self.driver.find_elements(By.CSS_SELECTOR, f".btn.btn-white.text-dark-600.pe-none")[1]
         current_data["downvotes"] = get_nums_from_str(downvote_element.text)[0]
 
-        current_data["timer"] = self.driver.find_element(By.ID, f"feedback-timer").text
+        current_data["timer"] = self.extract_text("feedback-timer", by=By.ID)
 
-        current_data["feedback_details"] = self.driver.find_element(By.XPATH,
-                                                                    "//h6[contains(text(),'Feedback Details')]").text
-        current_data["type"] = self.driver.find_element(By.XPATH,
-                                                        "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']").text
-        current_data["status"] = self.driver.find_element(By.XPATH,
-                                                          "//div[contains(text(),'Status')]/following-sibling::div").text
-        current_data["viewed"] = self.driver.find_element(By.XPATH,
-                                                          "//div[contains(text(),'Viewed')]/following-sibling::div").text
-        current_data["feedback_category"] = self.driver.find_element(By.XPATH,
-                                                                     "//div[contains(text(),'Feedback category')]/following-sibling::div").text
+        current_data["feedback_category"] = self.extract_text(
+            "//div[contains(text(),'Feedback category')]/following-sibling::div")
+        current_data["feedback_details"] = self.extract_text("//h6[contains(text(),'Feedback Details')]")
+        current_data["type"] = self.extract_text(
+            "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']")
+        current_data["status"] = self.extract_text("//div[contains(text(),'Status')]/following-sibling::div")
+        current_data["viewed"] = self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div")
+        current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
+        current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
+        current_data["assignee"] = \
+            self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div").split('\n')[1]
 
-        try:
-            current_data['year'] = self.driver.find_element(
-                By.XPATH, "//div[contains(text(),'Year')]/following-sibling::div"
-            ).text
-        except NoSuchElementException:
-            pass
-
-        try:
-            current_data['module'] = self.driver.find_element(
-                By.XPATH, "//div[contains(text(),'Module')]/following-sibling::div"
-            ).text
-        except NoSuchElementException:
-            pass
-
-        try:
-            current_data['assignee'] = self.driver.find_element(
-                By.XPATH, "//div[contains(text(),'Assignee')]/following-sibling::div"
-            ).text.split('\n')[1]
-        except NoSuchElementException:
-            pass
-
-        current_data['staff_views'] = self.driver.find_element(By.XPATH,
-                                                               "//div[contains(text(),'Staff')]/following-sibling::div").text
-        current_data['student_views'] = self.driver.find_element(By.XPATH,
-                                                                 "//div[contains(text(),'Students')]/following-sibling::div").text
+        current_data["staff_views"] = self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div")
+        current_data["student_views"] = self.extract_text("//div[contains(text(),'Students')]/following-sibling::div")
 
         # -------------- open posts --------------
         try:
