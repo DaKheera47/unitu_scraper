@@ -2,8 +2,8 @@ import json
 import os
 import pickle
 import time
-import requests
 
+import requests
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -175,8 +175,13 @@ class UnituDriver(webdriver.Edge):
         current_data["status"] = self.extract_text("//div[contains(text(),'Status')]/following-sibling::div")
         current_data["viewed"] = \
             get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))[0]
-        current_data["year"] = \
-            get_nums_from_str(self.extract_text("//div[contains(text(),'Year')]/following-sibling::div"))[0]
+
+        current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
+        if current_data["year"] is not None:
+            nums = get_nums_from_str(current_data["year"])
+            if len(nums) > 0:
+                current_data["year"] = nums[0]
+
         current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
 
         current_data["assignee"] = self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div")
@@ -187,10 +192,13 @@ class UnituDriver(webdriver.Edge):
             else:
                 current_data["assignee"] = split[0]
 
-        current_data["staffViews"] = \
-            get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))[0]
-        current_data["studentViews"] = get_nums_from_str(
-            self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))[0]
+        nums = get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))
+        if len(nums) > 0:
+            current_data["staffViews"] = nums[0]
+
+        nums = get_nums_from_str(self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))
+        if len(nums) > 0:
+            current_data["studentViews"] = nums[0]
 
         # -------------- open posts --------------
         try:
@@ -204,9 +212,13 @@ class UnituDriver(webdriver.Edge):
             if len(small_text_element) > 1:
                 current_data["issueOpenerDesignation"] = small_text_element[1].text
             else:
-                print(f"Issue opener {current_data['issue_opener_name']} doesn't have a designation, {url}")
+                try:
+                    print(f"Issue opener {current_data['issueOpenerName']} doesn't have a designation, {url}")
+                except KeyError:
+                    print("Issue opener doesn't exist in current_data, and doesn't have a designation")
 
             current_data["issueOpenerRole"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
+
         except NoSuchElementException as e:
             print(f"unable to find all fields of open posts. assuming that post was never opened.")
 
