@@ -135,6 +135,7 @@ class UnituDriver(webdriver.Edge):
 
         self.driver.get(url)
 
+        current_data["board_name"] = self.extract_text(".menu-links-selected", by=By.CSS_SELECTOR)
         current_data["title"] = self.extract_text("feedbackTitle", by=By.ID)
 
         current_data["description"] = self.extract_text("feedbackDescription", by=By.ID)
