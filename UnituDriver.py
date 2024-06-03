@@ -10,6 +10,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from CONSTANTS import TIMEOUT
+from utils import get_nums_from_str
 
 
 class UnituDriver(webdriver.Edge):
@@ -39,7 +40,7 @@ class UnituDriver(webdriver.Edge):
 
     def wait_for_page_load(self):
         # TODO: Implement a better way to wait for the page to load
-        time.sleep(7)
+        time.sleep(2)
 
     def find_elements(self, by, value):
         def presence_of_all_elements_located(driver):
@@ -120,8 +121,18 @@ class UnituDriver(webdriver.Edge):
             current_data["description"] = self.driver.find_element(By.ID, f"full_description_{post_id}").get_attribute(
                 'innerHTML').strip()
 
-        current_data["upvotes"] = self.driver.find_element(By.ID, f"countPositive_{post_id}").text
-        current_data["downvotes"] = self.driver.find_element(By.ID, f"countNegative_{post_id}").text
+        try:
+            upvote_element = self.driver.find_element(By.ID, f"countPositive_{post_id}")
+        except NoSuchElementException:
+            upvote_element = self.driver.find_elements(By.CSS_SELECTOR, f".btn.btn-white.text-dark-600.pe-none")[0]
+        current_data["upvotes"] = get_nums_from_str(upvote_element.text)[0]
+
+        try:
+            downvote_element = self.driver.find_element(By.ID, f"countNegative_{post_id}")
+        except NoSuchElementException:
+            downvote_element = self.driver.find_elements(By.CSS_SELECTOR, f".btn.btn-white.text-dark-600.pe-none")[1]
+        current_data["downvotes"] = get_nums_from_str(downvote_element.text)[0]
+
         current_data["timer"] = self.driver.find_element(By.ID, f"feedback-timer").text
 
         current_data["feedback_details"] = self.driver.find_element(By.XPATH,
@@ -161,7 +172,7 @@ class UnituDriver(webdriver.Edge):
         current_data['student_views'] = self.driver.find_element(By.XPATH,
                                                                  "//div[contains(text(),'Students')]/following-sibling::div").text
 
-        # -------------- open issues --------------
+        # -------------- open posts --------------
         try:
             issue_status_div = self.driver.find_element(By.XPATH, "//div[contains(text(), 'status to Open')]/..")
 
@@ -177,10 +188,10 @@ class UnituDriver(webdriver.Edge):
 
             current_data["issue_opener_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
         except NoSuchElementException as e:
-            print(f"unable to find all fields of open issues. Exception: {e}")
+            print(f"unable to find all fields of open posts. Exception: {e}")
 
-        # -------------- closed issues --------------
-        if current_data["status"] == "Closed":
+        # -------------- closed and archived posts --------------
+        if current_data["status"] == "Closed" or current_data["status"] == "Archived":
             try:
                 divs_with_close = self.driver.find_elements(By.XPATH, "*//div[contains(text(), 'Closed')]/..")
 
@@ -197,7 +208,7 @@ class UnituDriver(webdriver.Edge):
 
                 if not issue_status_div:
                     print("unable to find div with 'Closed' and @data-cy='feedback-history-container'")
-                    raise NoSuchElementException(msg="unable to find all fields of close issues")
+                    raise NoSuchElementException(msg="unable to find all fields of closed posts")
 
                 current_data["issue_closer_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
                 current_data["issue_closed_how_long_ago"] = issue_status_div.find_elements(By.CSS_SELECTOR,
@@ -209,7 +220,7 @@ class UnituDriver(webdriver.Edge):
                 current_data["issue_closer_role"] = issue_status_div.find_element(By.CSS_SELECTOR,
                                                                                   "span.badge").text
             except NoSuchElementException as e:
-                print(f"unable to find all fields of closed issues. Exception: {e}")
+                print(f"unable to find all fields of closed posts. Exception: {e}")
 
         current_data["unitu_url"] = url
 
@@ -223,7 +234,7 @@ class UnituDriver(webdriver.Edge):
     def get_data(self):
         return self.data
 
-    def grab_posts(self):
+    def grab_active_posts(self):
         # open
         open_div = self.driver.find_element(By.ID, "opened-drop-here")
         open_tickets = open_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
@@ -248,9 +259,47 @@ class UnituDriver(webdriver.Edge):
             a_tag = ticket.find_element(By.TAG_NAME, "a")
             self.scrape_post(a_tag.get_attribute("href"))
 
+    def grab_archived_posts(self, limit=-1):
+        home_url = "https://uclan.unitu.co.uk"
+
+        # Click on the archive page link
+        self.driver.find_element(By.CSS_SELECTOR, "a[data-cy='archive-page']").click()
+
+        # Wait for the page to load fully
+        self.wait_for_page_load()
+
+        # sibling
+        archived_tickets = self.driver.find_elements(By.XPATH,
+                                                     "*//div[contains(@class, 'archive-block__name')]/following-sibling::div/*")
+
+        # Get all the archived tickets
+        # archived_tickets = self.driver.find_elements(By.XPATH, "*//div[contains(@class, 'archive-ticket')]/..")
+        print(len(archived_tickets))
+
+        # Determine the number of posts to process based on the limit
+        if limit != -1 and limit <= len(archived_tickets):
+            # Process up to 'limit' tickets if a valid limit is specified
+            archived_tickets = archived_tickets[:limit]
+        else:
+            # If limit is -1 or greater than the number of tickets, process all tickets
+            archived_tickets = archived_tickets
+
+        # Iterate over the selected archived tickets
+        for ticket in archived_tickets:
+            ticket_href = ticket.get_attribute("href")
+            if not ticket_href:
+                print(ticket.get_attribute("innerHTML"))
+                print("unable to find ticket href")
+                continue
+            ticket_full_url = f"{home_url}{ticket_href}"
+            print(ticket_full_url)
+            self.scrape_post(ticket_full_url)
+
     def is_logged_in(self):
         username = self.driver.find_element(By.CSS_SELECTOR, ".menu-username")
 
+        # does the username field exist on the page
+        # it only exists when logged in
         return bool(username)
 
     def get(self, url):

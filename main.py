@@ -2,12 +2,13 @@ from UnituDriver import UnituDriver
 
 if __name__ == '__main__':
     driver = UnituDriver(
-        headless=True
+        headless=False
     )
 
     driver.login()
 
-    driver.grab_posts()
+    # driver.grab_active_posts()
+    driver.grab_archived_posts(limit=5)
 
     print(driver.get_data())
 
