@@ -112,6 +112,12 @@ class UnituDriver(webdriver.Edge):
         with open(file_name, "wb") as f:
             pickle.dump(self.driver.get_cookies(), f)
 
+    def dump_json(self, file_name='data.json'):
+        with open(file_name, "w") as f:
+            json.dump(self.data, f)
+
+        print(f"Data written to: {file_name}. Length of data: {len(self.data)}")
+
     def scrape_post(self, url):
         current_data = {}
         # Open a new tab
@@ -224,7 +230,7 @@ class UnituDriver(webdriver.Edge):
         # switch context to the first tab
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-    def get_data(self):
+    def collect_data(self):
         return self.data
 
     def grab_active_posts(self):
