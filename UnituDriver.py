@@ -138,12 +138,13 @@ class UnituDriver(webdriver.Edge):
         print(f"Scraping {url}")
         current_data = {}
         # Open a new tab
-        self.driver.execute_script("window.open('');")
+        # go to the url before doing anything
+        self.driver.execute_script(f"window.open('{url}');")
         # Switch context to the new tab
         self.driver.switch_to.window(self.driver.window_handles[1])
         post_id = url.split('-')[-1]
 
-        current_data["board_name"] = self.extract_text(".menu-links-selected", by=By.CSS_SELECTOR)
+        current_data["boardName"] = self.extract_text(".menu-links-selected", by=By.CSS_SELECTOR)
         current_data["title"] = self.extract_text("feedbackTitle", by=By.ID)
 
         current_data["description"] = self.extract_text("feedbackDescription", by=By.ID)
@@ -166,13 +167,13 @@ class UnituDriver(webdriver.Edge):
 
         current_data["timer"] = self.extract_text("feedback-timer", by=By.ID)
 
-        current_data["feedback_category"] = self.extract_text(
+        current_data["feedbackCategory"] = self.extract_text(
             "//div[contains(text(),'Feedback category')]/following-sibling::div")
-        current_data["feedback_details"] = self.extract_text("//h6[contains(text(),'Feedback Details')]")
+        current_data["feedbackDetails"] = self.extract_text("//h6[contains(text(),'Feedback Details')]")
         current_data["type"] = self.extract_text(
             "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']")
         current_data["status"] = self.extract_text("//div[contains(text(),'Status')]/following-sibling::div")
-        current_data["viewed"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))
+        current_data["viewed"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))[0]
         current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
         current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
 
@@ -184,25 +185,25 @@ class UnituDriver(webdriver.Edge):
             else:
                 current_data["assignee"] = split[0]
 
-        current_data["staff_views"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))
-        current_data["student_views"] = get_nums_from_str(
-            self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))
+        current_data["staffViews"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))[0]
+        current_data["studentViews"] = get_nums_from_str(
+            self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))[0]
 
         # -------------- open posts --------------
         try:
             issue_status_div = self.driver.find_element(By.XPATH, "//div[contains(text(), 'status to Open')]/..")
 
-            current_data["issue_opener_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
+            current_data["issueOpenerName"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
 
             small_text_element = issue_status_div.find_elements(By.CSS_SELECTOR, "span.small.text-dark-600")
-            current_data["issue_opened_how_long_ago"] = small_text_element[0].text
+            current_data["issueOpenedHowLongAgo"] = small_text_element[0].text
 
             if len(small_text_element) > 1:
-                current_data["issue_opener_designation"] = small_text_element[1].text
+                current_data["issueOpenerDesignation"] = small_text_element[1].text
             else:
                 print(f"Issue opener {current_data['issue_opener_name']} doesn't have a designation, {url}")
 
-            current_data["issue_opener_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
+            current_data["issueOpenerRole"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
         except NoSuchElementException as e:
             print(f"unable to find all fields of open posts. assuming that post was never opened.")
 
@@ -226,18 +227,18 @@ class UnituDriver(webdriver.Edge):
                     print("unable to find div with 'Closed' and @data-cy='feedback-history-container'")
                     raise NoSuchElementException(msg="unable to find all fields of closed posts")
 
-                current_data["issue_closer_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
+                current_data["issueCloserName"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
 
                 small_text_element = issue_status_div.find_elements(By.CSS_SELECTOR, "span.small.text-dark-600")
                 if len(small_text_element) >= 2:
-                    current_data["issue_closed_how_long_ago"] = small_text_element[0].text
-                    current_data["issue_closer_designation"] = small_text_element[1].text
+                    current_data["issueClosedHowLongAgo"] = small_text_element[0].text
+                    current_data["issueCloserDesignation"] = small_text_element[1].text
 
-                current_data["issue_closer_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
+                current_data["issueCloserRole"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
             except NoSuchElementException as e:
                 print(f"unable to find all fields of closed posts. Exception: {e}")
 
-        current_data["unitu_url"] = url
+        current_data["unituUrl"] = url
 
         current_data["comments"] = self.grab_post_comments()
 
@@ -331,10 +332,10 @@ class UnituDriver(webdriver.Edge):
         # Iterate over the selected archived tickets
         for ticket in archived_tickets:
             ticket_href = ticket.get_attribute("href")
+
             if not ticket_href:
-                print(ticket.get_attribute("innerHTML"))
-                print("unable to find ticket href")
                 continue
+
             ticket_full_url = f"{home_url}{ticket_href}"
             self.scrape_post(ticket_full_url)
 
@@ -351,9 +352,9 @@ class UnituDriver(webdriver.Edge):
             try:
                 content_element = comment.find_element(By.XPATH, ".//div[contains(@id, 'full_text_comment')]")
             except NoSuchElementException:
-                print("Removed Comment found!")
                 try:
                     content_element = comment.find_element(By.TAG_NAME, "em")
+                    print("Removed Comment found!")
                 except NoSuchElementException:
                     # this means that there are no comments.
                     print("No comments on post")
