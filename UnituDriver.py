@@ -164,7 +164,7 @@ class UnituDriver(webdriver.Edge):
         current_data["type"] = self.extract_text(
             "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']")
         current_data["status"] = self.extract_text("//div[contains(text(),'Status')]/following-sibling::div")
-        current_data["viewed"] = self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div")
+        current_data["viewed"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))
         current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
         current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
 
@@ -176,8 +176,9 @@ class UnituDriver(webdriver.Edge):
             else:
                 current_data["assignee"] = split[0]
 
-        current_data["staff_views"] = self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div")
-        current_data["student_views"] = self.extract_text("//div[contains(text(),'Students')]/following-sibling::div")
+        current_data["staff_views"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))
+        current_data["student_views"] = get_nums_from_str(
+            self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))
 
         # -------------- open posts --------------
         try:
@@ -220,8 +221,9 @@ class UnituDriver(webdriver.Edge):
                 current_data["issue_closer_name"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.h6").text
 
                 small_text_element = issue_status_div.find_elements(By.CSS_SELECTOR, "span.small.text-dark-600")
-                current_data["issue_closed_how_long_ago"] = small_text_element[0].text
-                current_data["issue_closer_designation"] = small_text_element[1].text
+                if len(small_text_element) >= 2:
+                    current_data["issue_closed_how_long_ago"] = small_text_element[0].text
+                    current_data["issue_closer_designation"] = small_text_element[1].text
 
                 current_data["issue_closer_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
             except NoSuchElementException as e:
