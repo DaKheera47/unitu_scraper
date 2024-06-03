@@ -186,7 +186,7 @@ class UnituDriver(webdriver.Edge):
 
             current_data["issue_opener_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
         except NoSuchElementException as e:
-            print(f"unable to find all fields of open posts. Exception: {e}")
+            print(f"unable to find all fields of open posts. assuming that post was never opened.")
 
         # -------------- closed and archived posts --------------
         if current_data["status"] == "Closed" or current_data["status"] == "Archived":
