@@ -173,8 +173,10 @@ class UnituDriver(webdriver.Edge):
         current_data["type"] = self.extract_text(
             "//div[contains(text(),'Type')]/following-sibling::div/span[@data-cy='feedback-type']")
         current_data["status"] = self.extract_text("//div[contains(text(),'Status')]/following-sibling::div")
-        current_data["viewed"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))[0]
-        current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
+        current_data["viewed"] = \
+            get_nums_from_str(self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div"))[0]
+        current_data["year"] = \
+            get_nums_from_str(self.extract_text("//div[contains(text(),'Year')]/following-sibling::div"))[0]
         current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
 
         current_data["assignee"] = self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div")
@@ -185,7 +187,8 @@ class UnituDriver(webdriver.Edge):
             else:
                 current_data["assignee"] = split[0]
 
-        current_data["staffViews"] = get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))[0]
+        current_data["staffViews"] = \
+            get_nums_from_str(self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div"))[0]
         current_data["studentViews"] = get_nums_from_str(
             self.extract_text("//div[contains(text(),'Students')]/following-sibling::div"))[0]
 
