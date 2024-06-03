@@ -115,6 +115,10 @@ class UnituDriver(webdriver.Edge):
             pickle.dump(self.driver.get_cookies(), f)
 
     def dump_json(self, file_name='data.json'):
+        if len(self.data) == 0:
+            print("Nothing to dump. Aborting")
+            return
+
         with open(file_name, "w") as f:
             json.dump(self.data, f)
 
@@ -165,7 +169,11 @@ class UnituDriver(webdriver.Edge):
 
         current_data["assignee"] = self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div")
         if current_data["assignee"]:
-            current_data["assignee"] = current_data["assignee"].split('\n')[1]
+            split = current_data["assignee"].split('\n')
+            if len(split) > 1:
+                current_data["assignee"] = split[1]
+            else:
+                current_data["assignee"] = split[0]
 
         current_data["staff_views"] = self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div")
         current_data["student_views"] = self.extract_text("//div[contains(text(),'Students')]/following-sibling::div")
@@ -238,7 +246,20 @@ class UnituDriver(webdriver.Edge):
     def collect_data(self):
         return self.data
 
-    def grab_active_posts(self, limit=-1):
+    def get_all_board_urls(self):
+        scrollable_menu = self.driver.find_element(By.CSS_SELECTOR, "#departmentsScrollableMenu")
+
+        boards = scrollable_menu.find_elements(By.XPATH, ".//li[contains(@class, 'menu-link-item')]")
+
+        urls = []
+        for board in boards:
+            a_tag = board.find_element(By.TAG_NAME, "a")
+
+            urls.append(a_tag.get_attribute("href"))
+
+        return urls
+
+    def grab_active_posts(self, board_url, limit=-1):
         def process_tickets(tickets):
             # Determine the number of posts to process based on the limit
             if limit != -1 and limit <= len(tickets):
@@ -249,6 +270,9 @@ class UnituDriver(webdriver.Edge):
             for ticket in tickets:
                 a_tag = ticket.find_element(By.TAG_NAME, "a")
                 self.scrape_post(a_tag.get_attribute("href"))
+
+        # go to the url of the board before getting the posts
+        self.driver.get(board_url)
 
         # open
         open_div = self.driver.find_element(By.ID, "opened-drop-here")
@@ -268,8 +292,11 @@ class UnituDriver(webdriver.Edge):
         closed_tickets = process_tickets(closed_tickets)
         scrape_tickets(closed_tickets)
 
-    def grab_archived_posts(self, limit=-1):
+    def grab_archived_posts(self, board_url, limit=-1):
         home_url = "https://uclan.unitu.co.uk"
+
+        # go to the url of the board before getting the posts
+        self.driver.get(board_url)
 
         # Click on the archive page link
         self.driver.find_element(By.CSS_SELECTOR, "a[data-cy='archive-page']").click()

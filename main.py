@@ -7,10 +7,11 @@ if __name__ == '__main__':
 
     driver.login()
 
-    driver.grab_active_posts()
-    driver.grab_archived_posts()
+    urls = driver.get_all_board_urls()
 
-    driver.collect_data()
+    for url in urls:
+        driver.grab_active_posts(url)
+        driver.grab_archived_posts(url)
 
     driver.dump_json()
 
