@@ -304,6 +304,9 @@ class UnituDriver(webdriver.Edge):
         comment_list = self.driver.find_elements(By.XPATH, "//*[@id='feedbackComments']/*")
         comments = []
 
+        if len(comment_list) <= 0:
+            return comments
+
         for comment in comment_list:
             curr_comment = {}
 
@@ -311,7 +314,13 @@ class UnituDriver(webdriver.Edge):
                 content_element = comment.find_element(By.XPATH, ".//div[contains(@id, 'full_text_comment')]")
             except NoSuchElementException:
                 print("Removed Comment found!")
-                content_element = comment.find_element(By.TAG_NAME, "em")
+                try:
+                    content_element = comment.find_element(By.TAG_NAME, "em")
+                except NoSuchElementException:
+                    # this means that there are no comments.
+                    print("No comments on post")
+                    continue
+
                 curr_comment["content"] = content_element.text
 
                 if curr_comment.get("removed_count"):
