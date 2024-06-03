@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 import time
+import requests
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
@@ -20,6 +21,7 @@ class UnituDriver(webdriver.Edge):
         self.headless = headless
         self.data = []
         self.driver = self.create_driver()
+        self.headless_client = self.create_headless_client()
 
         # Check if the "last_login.txt" file exists, and create it if it doesn't
         if not os.path.exists("last_login.txt"):
@@ -36,10 +38,25 @@ class UnituDriver(webdriver.Edge):
         if self.headless:
             # force window to 1080p
             options.add_argument("window-size=1920,1080")
-
             options.add_argument("--headless")
-
         return webdriver.Edge(options=options)
+
+    def create_headless_client(self):
+        session = requests.Session()
+        cookies = self.load_cookies()
+        for cookie in cookies:
+            session.cookies.set(cookie['name'], cookie['value'], domain=cookie.get('domain'))
+        return session
+
+    def load_cookies(self, file_name='cookies.pkl'):
+        with open(file_name, "rb") as cookie_file:
+            cookies = pickle.load(cookie_file)
+        return cookies
+
+    def dump_cookies(self, file_name='cookies.pkl'):
+        # add cookies to pickle file
+        with open(file_name, "wb") as f:
+            pickle.dump(self.driver.get_cookies(), f)
 
     def wait_for_page_load(self):
         # TODO: Implement a better way to wait for the page to load
@@ -90,7 +107,11 @@ class UnituDriver(webdriver.Edge):
             pass
 
         self.driver.get("https://uclan.unitu.co.uk/")
-        self.load_cookies()
+        cookies = self.load_cookies()
+
+        for cookie in cookies:
+            self.driver.add_cookie(cookie)
+
         self.driver.get("https://uclan.unitu.co.uk/")
 
         # this means the cookie injection worked
@@ -102,17 +123,6 @@ class UnituDriver(webdriver.Edge):
         input("Please login, and press enter when done. Note that this will store your cookies locally.")
 
         self.dump_cookies()
-
-    def load_cookies(self, file_name='cookies.pkl'):
-        with open(file_name, "rb") as cookie_file:
-            cookies = pickle.load(cookie_file)
-            for cookie in cookies:
-                self.driver.add_cookie(cookie)
-
-    def dump_cookies(self, file_name='cookies.pkl'):
-        # add cookies to pickle file
-        with open(file_name, "wb") as f:
-            pickle.dump(self.driver.get_cookies(), f)
 
     def dump_json(self, file_name='data.json'):
         if len(self.data) == 0:
@@ -132,8 +142,6 @@ class UnituDriver(webdriver.Edge):
         # Switch context to the new tab
         self.driver.switch_to.window(self.driver.window_handles[1])
         post_id = url.split('-')[-1]
-
-        self.driver.get(url)
 
         current_data["board_name"] = self.extract_text(".menu-links-selected", by=By.CSS_SELECTOR)
         current_data["title"] = self.extract_text("feedbackTitle", by=By.ID)
