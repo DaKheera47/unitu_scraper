@@ -34,13 +34,16 @@ class UnituDriver(webdriver.Edge):
     def create_driver(self):
         options = webdriver.EdgeOptions()
         if self.headless:
+            # force window to 1080p
+            options.add_argument("window-size=1920,1080")
+
             options.add_argument("--headless")
 
         return webdriver.Edge(options=options)
 
     def wait_for_page_load(self):
         # TODO: Implement a better way to wait for the page to load
-        time.sleep(2)
+        time.sleep(1)
 
     def find_elements(self, by, value):
         def presence_of_all_elements_located(driver):
@@ -120,10 +123,9 @@ class UnituDriver(webdriver.Edge):
         self.driver.get(url)
 
         current_data["title"] = self.extract_text("feedbackTitle", by=By.ID)
-        try:
-            # required for descriptions that don't expand
-            current_data["description"] = self.extract_text("feedbackDescription", by=By.ID)
-        except NoSuchElementException:
+
+        current_data["description"] = self.extract_text("feedbackDescription", by=By.ID)
+        if not bool(current_data["description"]):
             # required for descriptions that expand with a "show more" button
             description_element = self.driver.find_element(By.ID, f"full_description_{post_id}")
             current_data["description"] = description_element.get_attribute('innerHTML').strip()
@@ -208,6 +210,11 @@ class UnituDriver(webdriver.Edge):
         current_data["unitu_url"] = url
 
         current_data["comments"] = self.grab_post_comments()
+
+        # ensure that there are no values that are None
+        keys_to_remove = [key for key, value in current_data.items() if value is None]
+        for key in keys_to_remove:
+            del current_data[key]
 
         # save the data to the object
         self.data.append(current_data)
