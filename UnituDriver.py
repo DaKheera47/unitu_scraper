@@ -84,6 +84,7 @@ class UnituDriver(webdriver.Edge):
         try:
             # no need to check anything else if we're already logged in
             if self.is_logged_in():
+                print("Logged in already, likely redundant login call")
                 return
         except NoSuchElementException:
             pass
@@ -94,6 +95,7 @@ class UnituDriver(webdriver.Edge):
 
         # this means the cookie injection worked
         if self.is_logged_in():
+            print("Cookies injected successfully")
             return
 
         # if not cookies, ask the user to please log in
@@ -119,6 +121,7 @@ class UnituDriver(webdriver.Edge):
         print(f"Data written to: {file_name}. Length of data: {len(self.data)}")
 
     def scrape_post(self, url):
+        print(f"Scraping {url}")
         current_data = {}
         # Open a new tab
         self.driver.execute_script("window.open('');")
@@ -159,8 +162,10 @@ class UnituDriver(webdriver.Edge):
         current_data["viewed"] = self.extract_text("//div[contains(text(),'Viewed')]/following-sibling::div")
         current_data["year"] = self.extract_text("//div[contains(text(),'Year')]/following-sibling::div")
         current_data["module"] = self.extract_text("//div[contains(text(),'Module')]/following-sibling::div")
-        current_data["assignee"] = \
-            self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div").split('\n')[1]
+
+        current_data["assignee"] = self.extract_text("//div[contains(text(),'Assignee')]/following-sibling::div")
+        if current_data["assignee"]:
+            current_data["assignee"] = current_data["assignee"].split('\n')[1]
 
         current_data["staff_views"] = self.extract_text("//div[contains(text(),'Staff')]/following-sibling::div")
         current_data["student_views"] = self.extract_text("//div[contains(text(),'Students')]/following-sibling::div")
@@ -177,7 +182,7 @@ class UnituDriver(webdriver.Edge):
             if len(small_text_element) > 1:
                 current_data["issue_opener_designation"] = small_text_element[1].text
             else:
-                print(f"issue opener {current_data['issue_opener_name']} doesn't have a designation, {url}")
+                print(f"Issue opener {current_data['issue_opener_name']} doesn't have a designation, {url}")
 
             current_data["issue_opener_role"] = issue_status_div.find_element(By.CSS_SELECTOR, "span.badge").text
         except NoSuchElementException as e:
@@ -233,30 +238,35 @@ class UnituDriver(webdriver.Edge):
     def collect_data(self):
         return self.data
 
-    def grab_active_posts(self):
+    def grab_active_posts(self, limit=-1):
+        def process_tickets(tickets):
+            # Determine the number of posts to process based on the limit
+            if limit != -1 and limit <= len(tickets):
+                return tickets[:limit]
+            return tickets
+
+        def scrape_tickets(tickets):
+            for ticket in tickets:
+                a_tag = ticket.find_element(By.TAG_NAME, "a")
+                self.scrape_post(a_tag.get_attribute("href"))
+
         # open
         open_div = self.driver.find_element(By.ID, "opened-drop-here")
         open_tickets = open_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+        open_tickets = process_tickets(open_tickets)
+        scrape_tickets(open_tickets)
 
         # in progress
         in_progress_div = self.driver.find_element(By.ID, "in-progress-drop-here")
         in_progress_tickets = in_progress_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
+        in_progress_tickets = process_tickets(in_progress_tickets)
+        scrape_tickets(in_progress_tickets)
 
         # closed
         closed_div = self.driver.find_element(By.ID, "closed-drop-here")
         closed_tickets = closed_div.find_elements(By.CSS_SELECTOR, ".feedback-ticket")
-
-        for ticket in open_tickets:
-            a_tag = ticket.find_element(By.TAG_NAME, "a")
-            self.scrape_post(a_tag.get_attribute("href"))
-
-        for ticket in in_progress_tickets:
-            a_tag = ticket.find_element(By.TAG_NAME, "a")
-            self.scrape_post(a_tag.get_attribute("href"))
-
-        for ticket in closed_tickets:
-            a_tag = ticket.find_element(By.TAG_NAME, "a")
-            self.scrape_post(a_tag.get_attribute("href"))
+        closed_tickets = process_tickets(closed_tickets)
+        scrape_tickets(closed_tickets)
 
     def grab_archived_posts(self, limit=-1):
         home_url = "https://uclan.unitu.co.uk"
@@ -288,7 +298,6 @@ class UnituDriver(webdriver.Edge):
                 print("unable to find ticket href")
                 continue
             ticket_full_url = f"{home_url}{ticket_href}"
-            print(ticket_full_url)
             self.scrape_post(ticket_full_url)
 
     def grab_post_comments(self):
@@ -298,7 +307,23 @@ class UnituDriver(webdriver.Edge):
         for comment in comment_list:
             curr_comment = {}
 
-            curr_comment["content"] = comment.find_element(By.XPATH, ".//div[contains(@id, 'full_text_comment')]").text
+            try:
+                content_element = comment.find_element(By.XPATH, ".//div[contains(@id, 'full_text_comment')]")
+            except NoSuchElementException:
+                print("Removed Comment found!")
+                content_element = comment.find_element(By.TAG_NAME, "em")
+                curr_comment["content"] = content_element.text
+
+                if curr_comment.get("removed_count"):
+                    curr_comment["removed_count"] += 1
+                else:
+                    curr_comment["removed_count"] = 1
+
+                comments.append(curr_comment)
+
+                continue
+
+            curr_comment["content"] = content_element.get_attribute("innerHTML").strip()
             curr_comment["author"] = \
                 comment.find_element(By.XPATH, ".//span[contains(@data-cy, 'feedback-author-full-name')]").text
             parent = comment.find_element(By.XPATH,
