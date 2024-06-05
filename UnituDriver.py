@@ -279,6 +279,9 @@ class UnituDriver(webdriver.Edge):
         scrollable_menu = self.driver.find_element(By.CSS_SELECTOR, "#departmentsScrollableMenu")
 
         boards = scrollable_menu.find_elements(By.XPATH, ".//li[contains(@class, 'menu-link-item')]")
+        university_board = self.driver.find_element(By.XPATH, "//*[contains(@id, 'menu-board-University')]//..")
+
+        boards.extend([university_board])
 
         urls = []
         for board in boards:
